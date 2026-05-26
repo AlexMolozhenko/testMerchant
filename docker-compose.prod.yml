@@ -27,18 +27,6 @@ services:
     networks:
       - merchant_net
 
-  database:
-    image: mariadb:10.11.9
-    restart: always
-    environment:
-      MARIADB_DATABASE: ${DB_DATABASE}
-      MARIADB_USER: ${DB_USERNAME}
-      MARIADB_PASSWORD: ${DB_PASSWORD}
-      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
-    volumes:
-      - merchant_db:/var/lib/mysql
-    networks:
-      - merchant_net
 
   redis:
     image: redis:alpine
@@ -46,8 +34,6 @@ services:
     networks:
       - merchant_net
 
-volumes:
-  merchant_db:
 
 networks:
   merchant_net:
