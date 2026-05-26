@@ -203,25 +203,29 @@ enum AutoSettlementTriggerEnum: string {
 **Goal:** Проект поднимается, подключается к shared DB, базовая OAuth2 аутентификация работает.
 
 #### 1.1 Project Setup
-- [ ] Настроить `.env` — подключение к shared DB (uexapp-backend database)
-- [ ] Удалить стандартные Laravel миграции (users, sessions и т.д.) — они уже есть в shared DB
-- [ ] Настроить `config/database.php` — единственное подключение к shared DB
-- [ ] Установить зависимости: `tymon/jwt-auth` для выдачи merchant JWT
-- [ ] Настроить `Shared` слой: `AbstractApiController`, `SharedCriterionContract`, `SharedCriteriaApplierContract`
-- [ ] Настроить глобальный exception handler (JSON-ответы для всех ошибок)
+- [x] Настроить `.env` — подключение к shared DB (uexapp-backend database)
+- [x] Удалить стандартные Laravel миграции (users, sessions и т.д.) — они уже есть в shared DB
+- [x] Настроить `config/database.php` — единственное подключение к shared DB
+- [x] Установить зависимости: `tymon/jwt-auth` для выдачи merchant JWT
+- [x] Настроить `Shared` слой: `AbstractApiController`, `SharedCriterionContract`, `SharedCriteriaApplierContract`
+- [x] Настроить глобальный exception handler (JSON-ответы для всех ошибок)
 
-#### 1.2 Module: User (read-only, shared)
-- [ ] Model `User` → таблица `users` (только чтение, без миграции)
-- [ ] Entity `UserItemEntity`
-- [ ] EntityFactory, Presenter
-- [ ] Contract + Repository (только `findByCriteria`, `findById`)
-- [ ] Criteria: `UserByIdCriteria`, `UserByEmailCriteria`
-- [ ] Handler: `FindUserByCriteriaHandler`
+#### 1.2 Module: User (read-only, shared) ✅
+- [x] Model `User` → таблица `users` (только чтение, без миграции)
+- [x] Entity `UserItemEntity`
+- [x] EntityFactory, Presenter
+- [x] Contract + Repository (только `findByCriteria`)
+- [x] Criteria: `UserByIdCriteria`, `UserByEmailCriteria`
+- [x] Trait: `UserCriteriaTrait`
+- [x] Handler: `FindUserByCriteriaHandler`
 
-#### 1.3 Module: Merchant (read shared + own logic)
-- [ ] Model `Merchant` → таблица `merchants` (без миграции, читаем существующую)
-- [ ] Entity, EntityFactory, Presenter
-- [ ] Contract + Repository
+#### 1.3 Module: Merchant (read shared + own logic) ✅
+- [x] Model `Merchant` → таблица `merchants` (без миграции, читаем существующую)
+- [x] Entity, EntityFactory, Presenter
+- [x] Contract + Repository
+- [x] Criteria: `MerchantByIdCriteria`, `MerchantByUserIdCriteria`
+- [x] Trait: `MerchantCriteriaTrait`
+- [x] Handler: `FindMerchantByCriteriaHandler`
 
 #### 1.4 Module: MerchantApp (shared table)
 - [ ] Model `MerchantApp` → таблица `merchant_apps` (без миграции)
