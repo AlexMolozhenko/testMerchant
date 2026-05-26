@@ -202,6 +202,7 @@ enum AutoSettlementTriggerEnum: string {
 | `Repositories/UserRepository.php` | Implements UserContract |
 | `Criteria/UserByIdCriteria.php` | `WHERE id = ?` |
 | `Criteria/UserByEmailCriteria.php` | `WHERE email = ?` |
+| `Traits/Commands/UserCriteriaTrait.php` | `byId(int): static`, `byEmail(string): static` |
 | `Commands/Handlers/FindUserByCriteriaHandler.php` | Fluent find: `->byId()->execute()` |
 | `Providers/UserServiceProvider.php` | Binds UserContract → UserRepository |
 

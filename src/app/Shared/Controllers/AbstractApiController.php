@@ -16,6 +16,11 @@ use Illuminate\Routing\Controller;
  */
 abstract class AbstractApiController extends Controller
 {
+    /**
+     * @param  array  $data
+     *
+     * @return JsonResponse
+     */
     protected function success(array $data): JsonResponse
     {
         return response()->json([
@@ -24,6 +29,11 @@ abstract class AbstractApiController extends Controller
         ]);
     }
 
+    /**
+     * @param  string  $message
+     *
+     * @return JsonResponse
+     */
     protected function create(string $message = 'Created successfully.'): JsonResponse
     {
         return response()->json([
@@ -32,6 +42,11 @@ abstract class AbstractApiController extends Controller
         ], 201);
     }
 
+    /**
+     * @param  string|null  $message
+     *
+     * @return JsonResponse
+     */
     protected function noContent(?string $message = null): JsonResponse
     {
         if ($message !== null) {
@@ -44,6 +59,13 @@ abstract class AbstractApiController extends Controller
         return response()->json(null, 204);
     }
 
+    /**
+     * @param  string  $message
+     * @param  array|null  $errors
+     * @param  int  $status
+     *
+     * @return JsonResponse
+     */
     protected function error(string $message, ?array $errors = null, int $status = 422): JsonResponse
     {
         $body = [

@@ -17,6 +17,12 @@ use Illuminate\Database\Eloquent\Builder;
  */
 final readonly class SharedCriteriaApplier implements SharedCriteriaApplierContract
 {
+    /**
+     * @param  Builder  $query
+     * @param  SharedCriterionContract  ...$criteria
+     *
+     * @return Builder
+     */
     public function apply(Builder $query, SharedCriterionContract ...$criteria): Builder
     {
         foreach ($criteria as $criterion) {
