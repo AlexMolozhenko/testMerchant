@@ -1,0 +1,54 @@
+version: "3.8"
+
+services:
+  nginx:
+    image: nginx:1.27-alpine
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - ./src:/var/www/html:delegated
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d
+    depends_on:
+      - app
+    networks:
+      - merchant_net
+
+  app:
+    build:
+      context: ./docker/php-fpm
+      dockerfile: production/Dockerfile
+    restart: always
+    user: "1000:988"
+    volumes:
+      - ./src:/var/www/html:delegated
+      - ./docker/php-fpm/common/conf.d/opcache.ini:/usr/local/etc/php/conf.d/opcache.ini
+      - ./docker/php-fpm/common/conf.d/security.ini:/usr/local/etc/php/conf.d/security.ini
+    networks:
+      - merchant_net
+
+  database:
+    image: mariadb:10.11.9
+    restart: always
+    environment:
+      MARIADB_DATABASE: ${DB_DATABASE}
+      MARIADB_USER: ${DB_USERNAME}
+      MARIADB_PASSWORD: ${DB_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    volumes:
+      - merchant_db:/var/lib/mysql
+    networks:
+      - merchant_net
+
+  redis:
+    image: redis:alpine
+    restart: always
+    networks:
+      - merchant_net
+
+volumes:
+  merchant_db:
+
+networks:
+  merchant_net:
+    driver: bridge
