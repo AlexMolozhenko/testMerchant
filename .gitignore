@@ -1,0 +1,15 @@
+# IDE
+.idea/
+
+# Laravel
+src/.env
+src/vendor/
+src/storage/logs/*
+src/storage/framework/cache/*
+src/storage/framework/sessions/*
+src/storage/framework/views/*
+src/bootstrap/cache/*
+
+# OS
+.DS_Store
+Thumbs.db
