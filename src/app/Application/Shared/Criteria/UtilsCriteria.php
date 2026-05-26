@@ -18,7 +18,9 @@ trait UtilsCriteria
     /** @var SharedCriterionContract[] */
     private array $criteria = [];
 
-    /** @return SharedCriterionContract[] */
+    /**
+     * @return SharedCriterionContract[]
+     */
     public function getAndResetCriteria(): array
     {
         $criteria       = $this->criteria;
@@ -27,6 +29,11 @@ trait UtilsCriteria
         return $criteria;
     }
 
+    /**
+     * @param  SharedCriterionContract  $criterion
+     *
+     * @return static
+     */
     public function append(SharedCriterionContract $criterion): static
     {
         $this->criteria[] = $criterion;

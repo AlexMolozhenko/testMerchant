@@ -15,5 +15,10 @@ use Illuminate\Database\Eloquent\Builder;
  */
 interface SharedCriterionContract
 {
+    /**
+     * @param  Builder  $query
+     *
+     * @return Builder
+     */
     public function apply(Builder $query): Builder;
 }
