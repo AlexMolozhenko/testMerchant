@@ -54,6 +54,9 @@ tinker:
 cache-clear:
 	docker compose exec app php artisan optimize:clear
 
+swagger:
+	docker compose exec app php artisan l5-swagger:generate
+
 # Logs
 logs:
 	docker compose logs -f app

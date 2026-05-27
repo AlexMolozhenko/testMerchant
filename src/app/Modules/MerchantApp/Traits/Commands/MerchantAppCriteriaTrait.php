@@ -6,8 +6,11 @@ namespace App\Modules\MerchantApp\Traits\Commands;
 
 use App\Application\Shared\Criteria\UtilsCriteria;
 use App\Modules\MerchantApp\Criteria\MerchantAppByClientIdCriteria;
+use App\Modules\MerchantApp\Criteria\MerchantAppByClientSecretCriteria;
 use App\Modules\MerchantApp\Criteria\MerchantAppByIdCriteria;
 use App\Modules\MerchantApp\Criteria\MerchantAppByMerchantIdCriteria;
+use App\Modules\MerchantApp\Criteria\MerchantAppByStatusCriteria;
+use App\Modules\MerchantApp\Enums\MerchantAppStatusEnum;
 
 /**
  * Trait MerchantAppCriteriaTrait
@@ -52,6 +55,30 @@ trait MerchantAppCriteriaTrait
     final public function byMerchantId(int $merchantId): static
     {
         $this->criteria[] = new MerchantAppByMerchantIdCriteria($merchantId);
+
+        return $this;
+    }
+
+    /**
+     * @param  MerchantAppStatusEnum  $status
+     *
+     * @return static
+     */
+    final public function byStatus(MerchantAppStatusEnum $status): static
+    {
+        $this->criteria[] = new MerchantAppByStatusCriteria($status);
+
+        return $this;
+    }
+
+    /**
+     * @param  string  $clientSecret
+     *
+     * @return static
+     */
+    final public function byClientSecret(string $clientSecret): static
+    {
+        $this->criteria[] = new MerchantAppByClientSecretCriteria($clientSecret);
 
         return $this;
     }
