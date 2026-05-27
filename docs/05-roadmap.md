@@ -380,6 +380,8 @@ currencies list (из shared DB)
 
 Настройка авто-конвертации входящих платежей. Независима от `MerchantAutoSettlement` (Phase 3.10) — та про вывод, эта про входящие зачисления.
 
+Служит **глобальным дефолтом** для `settle_currency_id` при создании платёжных ссылок. При создании ссылки можно переопределить явно.
+
 **Migration: `merchant_auto_convert_settings`**
 
 | Column | Type | Notes |
@@ -387,8 +389,16 @@ currencies list (из shared DB)
 | `id` | bigint | PK |
 | `merchant_id` | bigint unique | один мерчант — одна настройка |
 | `is_enabled` | bool default false | глобальный toggle |
-| `to_currency_id` | int nullable | FK → currencies (USDT ERC-20) |
+| `to_currency_id` | int nullable | целевая валюта зачисления (USDT ERC-20 и т.д.) |
 | `created_at` / `updated_at` | | |
+
+**Логика разрешения `settle_currency_id` при создании ссылки (Phase 2.6):**
+```
+settle_currency_id передан явно в запросе → используем его
+settle_currency_id не передан + auto_convert.is_enabled = true → берём auto_convert.to_currency_id
+settle_currency_id не передан + auto_convert выключен → receive_as_paid
+  (зачисляем на баланс в валюте в которой заплатил покупатель, без конвертации)
+```
 
 **Module checklist:**
 - [ ] Migration `merchant_auto_convert_settings`
@@ -490,51 +500,61 @@ Mirror-ит структуру `transactions` из uexapp-backend. Одна та
     {
       "amount": "100.00",
       "price_currency_id": 1,
-      "crypto_currency_id": 3,
+      "accepted_currency_ids": [3, 5, 7],
+      "settle_currency_id": 3,
       "order_no": "ORD-777",
       "item_name": "iPhone 15",
       "parent_payment_id": null
     }
     ```
-  - Шаги:
-    1. Получить курс конвертации: `POST {BACKEND_URL}/api/exchanges/rate`
+  > `accepted_currency_ids` — список крипто-валют которыми может заплатить покупатель (выбирает на checkout).
+  > `settle_currency_id` — валюта в которую зачисляется баланс мерчанта после получения платежа. Опциональный:
+  > - передан явно → используем его
+  > - не передан + `auto_convert.is_enabled = true` → берём `auto_convert.to_currency_id`
+  > - не передан + auto_convert выключен → зачисляем в валюте которой заплатил покупатель (receive_as_paid)
+
+  - Шаги при создании ссылки:
+    1. Разрешить `settle_currency_id` по логике выше (через `FindAutoConvertByCriteriaHandler`)
+    2. Установить `expires_at` = now + `MERCHANT_PAYMENT_TTL_MINUTES` (default 120)
+    3. Создать `merchant_payments`: `amount`, `price_currency_id`, `accepted_currency_ids` (JSON), `settle_currency_id`, `order_no`, `item_name`, `status = PENDING`
+    > Адрес **не назначается** при создании ссылки — назначается когда покупатель выбирает валюту оплаты на checkout (см. 2.4)
+
+  - Шаги когда покупатель выбирает валюту оплаты на checkout (`payment_method_id`):
+    1. Получить курс конвертации: `POST {BACKEND_URL}/api/exchanges/rate` (`price_currency_id` → `payment_method_id`)
     2. `net_crypto_amount` = конвертированная сумма из ответа (100 USD → 100.02 USDT)
-    3. Получить ставку мерчанта: `ResolveMerchantFeeRateHandler->execute($merchantId, $currencyId)` (Phase 3.9)
-       — возвращает `string` процент (e.g. `"1.00"`) по цепочке: per-currency → global per-merchant → config default
+    3. Получить ставку мерчанта: `ResolveMerchantFeeRateHandler->execute($merchantId, $settle_currency_id)` (Phase 3.9)
+       — возвращает `string` процент по цепочке: per-currency → global per-merchant → config default
     4. Рассчитать (всё через `bcmath`):
        ```
-       // fee всегда платит мерчант — покупатель видит net_crypto_amount
+       // fee платит мерчант — покупатель видит net_crypto_amount
        // fee снимается из зачисляемой суммы при получении платежа
        fee_amount   = bcmul($netCryptoAmount, bcdiv($feePercent, '100', 8), 8)
-       gross_crypto = $netCryptoAmount   // покупатель всегда платит ровно net
+       gross_crypto = $netCryptoAmount   // покупатель платит ровно net
        ```
        Если `feePercent = '0.00'` → `fee_amount = '0.00000000'`
     5. Назначить адрес через `MerchantAddressAssignment` (см. 2.4)
-    6. Установить `expires_at` = now + `MERCHANT_PAYMENT_TTL_MINUTES` (default 120)
-    7. Создать `merchant_payments`:
-       - `amount` = исходная сумма мерчанта в price_currency (100.00 USD)
-       - `total` = `gross_crypto` (101.00 USDT) — **то что должен заплатить покупатель**
-       - `fee` = `fee_amount` в крипто (1.00 USDT) — зафиксировано на момент создания
+    6. Обновить `merchant_payments`:
+       - `total` = `gross_crypto` — то что должен заплатить покупатель
+       - `fee` = `fee_amount` в крипто — зафиксировано на момент выбора валюты
+       - `payment_method_id` = выбранная покупателем крипто-валюта
        - `percentage` = курс конвертации
+       - `gateway_reference` = назначенный адрес
        - `metadata`: `{ net_amount, fee_amount, fee_percentage, gross_amount }`
-       - `status = MerchantPaymentStatusEnum::PENDING`, `parent_payment_id` если передан
+
   - Returns:
     ```json
     {
       "payment_url": "https://pay.uex.com/pay/{uuid}",
-      "address": "TKHfnNi7CMrnF7ME3gL4BXr1qo9VnvrRcs",
-      "crypto_amount": "101.00",
-      "net_amount": "100.00",
-      "fee_amount": "1.00",
-      "fee_percentage": "1.00",
-      "currency": "USDT",
-      "network": "TRC-20",
-      "rate": "1.0002",
+      "accepted_currencies": [
+        { "id": 3, "symbol": "USDT", "network": "TRC-20" },
+        { "id": 5, "symbol": "ETH",  "network": "ERC-20" }
+      ],
+      "settle_currency": { "id": 3, "symbol": "USDT" },
+      "amount": "100.00",
+      "price_currency": "USD",
       "expires_at": "2026-05-22T15:10:00Z"
     }
     ```
-    > `crypto_amount` — это `gross` (то что видит покупатель на checkout-странице).
-    > `net_amount` — то что зачислится мерчанту после оплаты.
 
 #### 2.7 Application: Payment Incoming (internal, secured)
 Вызывается из uexapp-backend когда Kafka детектирует подтверждённый платёж на адрес из пула.
@@ -1569,8 +1589,34 @@ ALTER TABLE merchant_apps
 > `client_secret` не возвращается в списке — только при создании и rotate.
 
 #### 4.2 Application: Merchant Settings
-- [ ] `PUT /merchant/settings` — обновить business_name, site_url, logo
-- [ ] `POST /merchant/logo` — загрузить логотип
+
+##### Shared: File Management (по образцу uexapp-backend)
+
+- [ ] `Shared/Files/FileManager` — резолвер путей и публичных URL
+- [ ] `Shared/Files/Commands/FileSaveCommand` — сохранение файла + валидация MIME/размера
+- [ ] `Shared/Files/Local/Resolver/StrategyResolver` — маршрутизация по MIME (Image → WebP через Intervention)
+- [ ] `Shared/Files/ValueObject/FileObject` — value object результата (filename, path, extension)
+- [ ] `Shared/Files/Enums/FileCategoryEnum` — категории файлов (`MERCHANT_LOGO`)
+
+##### Module: Merchant — новые handlers
+
+- [ ] `UpdateMerchantHandler` — обновляет `business_name`, `site_url` в таблице `merchants`
+- [ ] `UpdateMerchantLogoHandler` — обновляет поле `logo` (принимает `string|null`)
+- [ ] Transfer: `UpdateMerchantProfileRequestTransfer`
+
+##### Application API
+
+**Profile update:**
+- [ ] `PATCH /merchant/profile` — обновить `business_name`, `site_url`
+
+**Logo management:**
+- [ ] `POST /merchant/profile/logo` — загрузить/заменить логотип (`multipart/form-data`)
+  - `FileSaveCommand` сохраняет файл → `UpdateMerchantLogoHandler`
+  - Если уже есть старый логотип → сначала удалить файл с диска, потом сохранить новый
+- [ ] `DELETE /merchant/profile/logo` — удалить логотип
+  - Удалить файл с диска → `UpdateMerchantLogoHandler(null)`
+
+**Auto-convert:**
 - [ ] `GET /merchant/currencies/auto-convert` — получить настройку авто-конвертации (Phase 2.3b)
 - [ ] `PATCH /merchant/currencies/auto-convert` — обновить `is_enabled` + `to_currency_id`
 

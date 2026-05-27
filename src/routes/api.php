@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Application\Http\Controllers\Auth\Exchange\ExchangeTokenController;
 use App\Application\Http\Controllers\Auth\OAuth2\OAuth2TokenController;
+use App\Application\Http\Controllers\Merchant\GetMerchantProfileController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/up', static fn () => response()->json(['status' => 'ok']));
@@ -21,6 +22,6 @@ Route::prefix('merchant')->group(function (): void {
 
     // Protected routes
     Route::middleware('merchant.auth')->group(function (): void {
-        // Phase 1.6+
+        Route::get('profile', GetMerchantProfileController::class);
     });
 });
