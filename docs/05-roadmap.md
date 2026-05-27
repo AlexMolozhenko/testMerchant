@@ -227,14 +227,20 @@ enum AutoSettlementTriggerEnum: string {
 - [x] Trait: `MerchantCriteriaTrait`
 - [x] Handler: `FindMerchantByCriteriaHandler`
 
-#### 1.4 Module: MerchantApp (shared table)
-- [ ] Model `MerchantApp` → таблица `merchant_apps` (без миграции)
-- [ ] Entity, EntityFactory, Presenter
-- [ ] Contract + Repository
-- [ ] Criteria: `MerchantAppByClientIdCriteria`, `MerchantAppByMerchantIdCriteria`, `MerchantAppByIdCriteria`
-- [ ] Handlers: `FindMerchantAppByCriteriaHandler`, `StoreMerchantAppHandler`, `DeleteMerchantAppHandler`
+#### 1.4 Module: MerchantApp ✅
+- [x] Migration `ALTER TABLE merchant_apps` (name, mode, rate_limit_per_minute, status, last_used_at) — в `app/Modules/MerchantApp/Data/Migrations/`
+  > Поле `permissions` зарезервировано в миграции, логика не реализована — управление доступом через статус app/merchant
+- [x] Enums: `MerchantAppModeEnum`, `MerchantAppStatusEnum`
+- [x] Model `MerchantApp` → таблица `merchant_apps`
+- [x] Entity, EntityFactory, Presenter
+- [x] Contract + Repository
+- [x] Criteria: `MerchantAppByClientIdCriteria`, `MerchantAppByMerchantIdCriteria`, `MerchantAppByIdCriteria`
+- [x] Trait: `MerchantAppCriteriaTrait`
+- [x] Handlers: `FindMerchantAppByCriteriaHandler`, `StoreMerchantAppHandler`, `DeleteMerchantAppHandler`
+- [x] Transfer: `StoreMerchantAppTransfer`
+- [x] ServiceProvider `MerchantAppServiceProvider` (з `loadMigrationsFrom`)
 
-#### 1.5 Application: Auth Endpoints
+#### 1.5 Application: Auth Endpoints ✅
 
 **Auth strategy: Shared Secret (HS256)**
 - uexapp-backend и uex-merchant-platform используют один `JWT_SECRET` (HS256)
@@ -242,26 +248,27 @@ enum AutoSettlementTriggerEnum: string {
 - Выдаёт собственный merchant JWT с другим payload и временем жизни
 - Backend JWT дропается — в merchant platform не используется
 
-`.env` uex-merchant-platform:
-```
-BACKEND_JWT_SECRET=   # тот же секрет что в uexapp-backend
-MERCHANT_JWT_SECRET=  # свой секрет для merchant токенов
-MERCHANT_JWT_TTL=     # время жизни merchant токена в минутах
-```
-
-- [ ] `POST /merchant/auth/exchange`
+- [x] `JwtService` — decode/encode через `lcobucci/jwt` (Shared/Services)
+- [x] `MerchantTokenPayload` — value object для decoded merchant token (Shared/Transfers)
+- [x] `POST /merchant/auth/exchange`
   - Input: `{ token: "<backend_jwt>" }`
   - Декодирует backend JWT через `BACKEND_JWT_SECRET`
   - Находит user в `users`, проверяет наличие записи в `merchants` со статусом `active`
   - Выдаёт merchant JWT: `{ user_id, merchant_id, merchant_uuid }`
   - Return: `{ access_token, token_type, expires_in }`
-- [ ] `POST /merchant/oauth2/token`
+- [x] `POST /merchant/oauth2/token`
   - Input: `{ client_id, client_secret, grant_type: "client_credentials" }`
   - Для server-to-server интеграции (сервер мерчанта → наш API)
-  - Validate credentials against `merchant_api_credentials`
-  - Issue merchant JWT: `{ merchant_id, scope }`
+  - Validate credentials against `merchant_apps`
+  - Issue merchant JWT: `{ merchant_id, app_id }`
   - Return: `{ access_token, token_type, expires_in }`
-- [ ] Middleware: `MerchantAuthMiddleware` — верифицирует merchant JWT на всех защищённых роутах
+- [x] Middleware: `MerchantAuthMiddleware` — верифицирует merchant JWT, кладёт `MerchantTokenPayload` в `$request->attributes`
+- [ ] Middleware: `MerchantActiveMiddleware` — проверяет `merchants.status === Approved`, иначе 403
+- [ ] Middleware: `MerchantKybMiddleware` — проверяет `merchant_kyb_verifications.status === approved`, иначе 403
+
+**Route groups:**
+- `merchant.auth` only → profile, balance (read-only)
+- `merchant.auth` + `merchant.active` + `merchant.kyb` → payments, webhooks, withdrawals
 
 #### 1.6 Application: Merchant Profile
 - [ ] `GET /merchant/profile` — данные мерчанта (business_name, site_url, logo, fee, status)
